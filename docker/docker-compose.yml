@@ -1,0 +1,151 @@
+version: '2'
+services:
+    redis0-icl:
+        build: ./gap-docker/redis
+        image: redis.icl.main
+        container_name: redis0.icl.main
+        expose:
+            - "6379"
+        ports:
+            - "6379:6379"
+
+    redis0-icl-openuser:
+        build: ./gap-docker/redis
+        image: redis.icl.main
+        container_name: redis0.icl-user.main
+        expose:
+            - "6379"
+
+    front-server0-icl:
+        build: ./gap-docker/front-server
+        image: front-server.icl.main
+        container_name: front-server0.icl.main
+        volumes:
+            - ./icl-main/bin:/var/code/bin
+            - ./icl-main/front:/var/code/front
+            - ./icl-main/app:/var/code/app
+            - ./data/node_modules:/var/code/node_modules
+        expose:
+            - "8787"
+        ports:
+            - "8787:8787"
+
+    front-server0-icl-openuser:
+        build: ./gap-docker/front-server
+        image: front-server.icl.main
+        container_name: front-server0.icl-openuser.main
+        volumes:
+            - ./icl-openuser-main/bin:/var/code/bin
+            - ./icl-openuser-main/front:/var/code/front
+            - ./icl-openuser-main/app:/var/code/app
+            - ./data/node_modules2:/var/code/node_modules
+        expose:
+            - "8787"
+
+    task-server0-icl:
+        build: ./gap-docker/task-server
+        image: task-server.icl.main
+        container_name: task-server0.icl.main
+        volumes:
+            - ./icl-main:/var/code
+        links:
+            - redis0-icl:redis
+        expose:
+            - "9502"
+        ports:
+            - "9502:9502"
+
+    php0-icl:
+        build: ./gap-docker/php
+        image: php.icl.main
+        container_name: php0.icl.main
+        volumes:
+            - ./icl-main:/var/code
+        links:
+            - redis0-icl:redis
+            - task-server0-icl:task-server
+            - xunsearch0-icl:xunsearch
+        expose:
+            - "9000"
+        extra_hosts:
+            - "user.icl.main:192.168.18.140"
+
+    php0-icl-openuser:
+        build: ./gap-docker/php
+        image: php.icl.main
+        container_name: php0.icl-openuser.main
+        volumes:
+            - ./icl-openuser-main:/var/code
+        links:
+            - redis0-icl-openuser:redis
+        expose:
+            - "9000"
+
+    nginx0-icl:
+        build: ./gap-docker/nginx
+        image: nginx.icl.main
+        container_name: nginx0.icl.main
+        volumes:
+            - ./icl-main:/var/code
+            - ./nginx/sites-enabled-icl:/usr/local/conf/sites-enabled
+        links:
+            - php0-icl:php
+            - front-server0-icl:front-server-icl
+        expose:
+            - "80"
+
+    nginx0-icl-openuser:
+        build: ./gap-docker/nginx
+        image: nginx.icl.main
+        container_name: nginx0.icl-openuser.main
+        volumes:
+            - ./icl-openuser-main:/var/code
+            - ./nginx/sites-enabled-icl-openuser:/usr/local/conf/sites-enabled
+        links:
+            - php0-icl-openuser:php
+            - front-server0-icl-openuser:front-server-icl-openuser
+        expose:
+            - "80"
+
+    nginx0-proxy:
+        build: ./gap-docker/nginx
+        image: nginx.icl.main
+        container_name: nginx0.proxy.main
+        links:
+            - nginx0-icl:icl
+            - nginx0-icl-openuser:icl-openuser
+        volumes:
+            - ./nginx/sites-enabled-proxy:/usr/local/conf/sites-enabled
+            - ./nginx/log:/var/code/log
+        expose:
+            - "80"
+        ports:
+            - "80:80"
+
+    xunsearch0-icl:
+        build: ./gap-docker/xunsearch
+        image: xunsearch.icl.main
+        container_name: xunsearch0.icl.main
+        volumes:
+            - ./data/xs0:/usr/local/xunsearch/data
+        expose:
+            - "8383"
+            - "8384"
+
+    db0:
+        build: ./gap-docker/mariadb
+        image: db.icl.main
+        container_name: db0.icl.main
+        volumes:
+            - ./data/db0:/var/data
+        expose:
+            - "3306"
+        ports:
+            - "3306:3306"
+        environment:
+            - MYSQL_ROOT_PASSWORD=123456789
+            - CLUSTER_NAME=crp-cluster
+            - MAXSCALE_USER=maxscale
+            - MAXSCALE_PASS=123456789
+            - SERVER_ID=10
+
